@@ -145,9 +145,15 @@ else
 fi
 
 echo "Creating directories..."
-echo "-----------------------"
 echo mkdir -p $wdbdir $wwebdir
 mkdir -p $wdbdir $wwebdir
+
+if [ -x /usr/sbin/getenforce ]; then
+  if [ "`/usr/sbin/getenforce`" == "Enforcing" ]; then
+    echo "Setting SELinux permissions for web directory..."
+    chcon -R -t httpd_sys_rw_content_t $wwebdir
+  fi
+fi
 
 echo "Setting up docker containers..."
 linking=""

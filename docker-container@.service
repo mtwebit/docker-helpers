@@ -3,7 +3,8 @@
 
 [Unit]
 Description=Docker container for %i
-After=docker.service
+Documentation=https://github.com/mtwebit/docker-helpers
+Requisite=docker.service
 # Set this if you have docker backends in your nginx config
 Before=nginx.service
 

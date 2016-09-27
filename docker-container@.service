@@ -1,0 +1,17 @@
+# Docker template unit
+# Created by Tamás Meszaros <mt+git@webit.hu>
+
+[Unit]
+Description=Docker container for %i
+After=docker.service
+
+[Service]
+# Restart on timeout, watchdog or unclean signal, don't restart on normal/error exit
+Restart=on-abnormal
+# Start the container in non-interactive mode
+ExecStart=/usr/bin/docker start --attach=true --interactive=false %i
+# Wait 5 sec before killing the container
+ExecStop=/usr/bin/docker stop --time=5 %i
+
+[Install]
+WantedBy=local.target

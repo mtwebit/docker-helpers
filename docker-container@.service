@@ -4,6 +4,8 @@
 [Unit]
 Description=Docker container for %i
 After=docker.service
+# Set this if you have docker backends in your nginx config
+Before=nginx.service
 
 [Service]
 # Restart on timeout, watchdog or unclean signal, don't restart on normal/error exit
@@ -14,4 +16,4 @@ ExecStart=/usr/bin/docker start --attach=true --interactive=false %i
 ExecStop=/usr/bin/docker stop --time=5 %i
 
 [Install]
-WantedBy=local.target
+WantedBy=multi-user.target

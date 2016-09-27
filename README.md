@@ -12,3 +12,16 @@ It also tries to configure the nginx front end that probably won't be perfect in
 
 ## DockerInfo.sh
 A simple helper to get various info (like IP address, name, hostname and status) about containers.
+
+## docker-container.service
+A systemd template unit to start/stop named containers.  
+- Installation: save the unit file into /etc/systemd/system, then execute  
+  <code>systemctl daemon-reload</code>
+- Create a unit for a container named "foo" and start it upon boot:  
+  <code>systemctl enable docker-container@foo.service</code>
+- Start the container:  
+  <code>systemctl start docker-container@foo.service</code>
+- Stop the container:  
+  <code>systemctl stop docker-container@foo.service</code>
+- Verify the container:  
+  <code>systemctl status docker-container@foo.service</code>

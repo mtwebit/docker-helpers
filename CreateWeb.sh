@@ -22,9 +22,9 @@ function ask() {
   echo -n "${2}: [$3] "
   read pp
   if [ "$pp" == "" ]; then
-    eval ${1}=$3
+    eval ${1}="$3"
   else
-    eval ${1}=$pp
+    eval ${1}="$pp"
   fi
 }
 
@@ -60,6 +60,7 @@ fi
 dockerdns=$(docker ps -q --filter "ancestor=mgood/resolvable")
 if [ "$dockerdns" == "" ]; then
   echo "WARNING: no known DNS resolver found for docker container names (*.docker)."
+  echo "I can install you one if you don't have any."
   if askif "Do you have a working DNS resolver for docker image names?" "n"; then
      ask ddnsname "Specify its docker name" "dresolver"
   else

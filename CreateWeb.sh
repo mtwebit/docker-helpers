@@ -1,6 +1,11 @@
 #!/bin/bash
 # Shell script to create a backend Web server using docker containers
 # Created by Tamas Meszaros <mt+git@webit.hu>
+# License: Apache 2.0
+#
+# To quickly grab a fresh copy of this file
+# curl -Os https://raw.githubusercontent.com/mtwebit/docker-helpers/master/CreateWeb.sh && chmod 700 CreateWeb.sh
+#
 
 function show_help() {
 cat << EOF
@@ -60,7 +65,7 @@ if [ "$dockerdns" == "" ]; then
   else
     if askif "Install mgood/resolvable as DNS resolver?" "y"; then
        ask ddnsname "Short name for the DNS resolver container" "dresolver"
-       docker create --name $ddnsname -v /var/run/docker.sock:/tmp/docker.sock -v /etc/resolv.conf:/tmp/resolv.conf mgood/resolvable || exit 1
+       docker create --restart=unless-stopped --name $ddnsname -v /var/run/docker.sock:/tmp/docker.sock -v /etc/resolv.conf:/tmp/resolv.conf mgood/resolvable || exit 1
        docker start $ddnsname ||  exit 1
     fi
   fi
@@ -94,34 +99,39 @@ echo "$wwebdir will hold the application server files (e.g. PHP code)."
 
 ask wwebsrv "Docker image for running the Web app" "bitnami/php-fpm"
 ask wwebsrvdir "Web (data) directory in the container" "/app"
-echo "This directory will be linked to $wwebdir"
+echo "You can specify directory mappings the following way: -v <host-dir>:<docker-dir>"
+echo "e.g. -v ${wwebdir}:${wwebsrvdir} -v ${wdir}/config/php-fpm:/bitnami/php-fpm"
+ask wdirmaps "Directory mappings" "-v ${wwebdir}:${wwebsrvdir}"
+ask wwebrestart "Specify restart policy for this image (no|always|on-failure|unless-stopped)" "unless-stopped"
 
 if askif "Do you need database for the server?" "n"; then
-  wdbdir="${wdir}/db"
   ask wdbsrv "Docker image for DB" "bitnami/mariadb:latest"
   ask wdbsrvname "Short name of the server (role)" "dbserver"
   echo "This image will be linked to $wwebsrv as '$wdbsrvname'"
+  wdbdir="${wdir}/db"
   ask wdbsrvdir "DB directory in the container" "/bitnami/mariadb"
-  echo "This directory will be linked to $wdbdir"
+  ask wdbdirmaps "Directory mappings" "-v ${wdbdir}:${wdbsrvdir}"
+  ask wdbrestart "Specify restart policy for this image (no|always|on-failure|unless-stopped)" "unless-stopped"
 else
   wdbsrv=""
   wdbdir="<none>"
   wdbsrvname="<none>"
   wdbsrvdir=""
+  wdbdirmaps=""
 fi
 
-if askif "Do you need any additional docker server?" "n"; then
+if askif "Do you need any additional docker image linked to ${wname}?" "n"; then
   ask waddsrv "Docker image name" "bitnami/mongodb:latest"
   ask waddsrvname "Short name of the server (role)" "mongodb"
   wadddir="${wdir}/${waddsrvname}"
   echo "This image will be linked to $wwebsrv as '$waddsrvname'"
-  ask waddsrvdir "Data directory in the container" "/bitnami/mongodb"
-  echo "This directory will be linked to $wadddir"
+  ask wadddirmaps "Directory mappings for $waddsrv" "-v ${wdir}/{$waddsrvname}:/bitnami/mongodb"
+  ask waddrestart "Specify restart policy for this image (no|always|on-failure|unless-stopped)" "unless-stopped"
 else
   waddsrv=""
   wadddir=""
   waddsrvname="<none>"
-  waddsrvdir=""
+  wadddirmaps=""
 fi
 
 cat - << EOF
@@ -132,8 +142,14 @@ Project name:  $wname
 Project dir:   $wdir
 Database dir:  $wdbdir
 Web files:     $wwebdir
-Docker images: $wwebsrv $wdbsrv $waddsrv
-DNS resolver:  $ddnsname
+DNS resolver:  $ddnsname  restart: unless-stopped
+Docker images, their mappings and restart policy:
+  $wwebsrv  restart: $wwebrestart
+    $wdirmaps
+  $wdbsrv restart: $wdbrestart
+    $wdbdirmaps
+  $waddsrv  restart: $waddrestart
+    $wadddirmaps
 
 EOF
 
@@ -160,18 +176,18 @@ linking=""
 names=""
 if [ "$wdbsrv" != "" ]; then
   echo "database..."
-  docker create --name ${wname}-${wdbsrvname} -v ${wdbdir}:${wdbsrvdir} $wdbsrv || exit 1
+  docker create --restart=${wdbrestart} --name ${wname}-${wdbsrvname} ${wdbdirmaps} $wdbsrv || exit 1
   linking="$linking --link ${wname}-${wdbsrvname}:${wdbsrvname}"
   names="$names ${wname}-${wdbsrvname}"
 fi
 if [ "$waddsrv" != "" ]; then
   echo "${waddsrvname}..."
-  docker create --name ${wname}-${waddsrvname} -v ${wadddir}:${waddsrvdir} $waddsrv || exit 1
+  docker create --restart=${waddrestart} --name ${wname}-${waddsrvname} ${wadddirmaps} $waddsrv || exit 1
   linking="$linking --link ${wname}-${waddsrvname}:${waddsrvname}"
   names="$names ${wname}-${waddsrvname}"
 fi
 
-docker create --name $wname $linking -v ${wwebdir}:${wwebsrvdir} ${wwebsrv} || exit 1
+docker create --restart=${wwebrestart} --name $wname $linking ${wdirmaps} ${wwebsrv} || exit 1
 names="$names $wname"
 
 cat - <<EOF
@@ -197,11 +213,8 @@ if askif "Do you want to setup a vhost-based nginx proxy to ${wname}?" "n"; then
     cat - <<EOF >> /etc/nginx/conf.d/${wname}.conf
 server {
   listen 80;
-
   server_name $wurl;
-
   root ${wwebdir};
-
   access_log            /var/log/nginx/${wname}.access.log;
 
 # All requests are handled by the ${wname} docker server
@@ -216,23 +229,26 @@ server {
     proxy_redirect      http://${wname}.docker http://$wurl;
   }
 
-# PHP scripts are served using the docker image
-  location ~ \.php$ {
-        fastcgi_pass ${wname}.docker:9000;
-        root /$wwebsrvdir;
-        fastcgi_index index.php;
-        include fastcgi.conf;
-    }
-
+# Alternatively you can try to handle these requests on the main host
 #  location / {
-#    index index.php;
+#    try_files $uri $uri/ /index.php?$uri&args;
 #  }
 
+# PHP scripts are served using the docker image
+  location ~ \.php\$ {
+    include fastcgi.conf;
+    include fastcgi_params.conf;
+    fastcgi_pass ${wname}.docker:9000;
+    root /$wwebsrvdir;
+    fastcgi_index index.php;
+    index index.php;
+    fastcgi_split_path_info ^(.+\.php)(/.+)\$;
+    fastcgi_param SCRIPT_FILENAME \$document_root/\$fastcgi_script_name;
+  }
 }
 
 EOF
     echo "/etc/nginx/conf.d/${wname}.conf created. You should review its content."
-    echo "You need to decide what is handled by the docker image."
     echo "Restart nginx to activate the new proxy vhost."
   fi
 fi

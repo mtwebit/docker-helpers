@@ -22,9 +22,9 @@ function ask() {
   echo -n "${2}: [$3] "
   read pp
   if [ "$pp" == "" ]; then
-    eval ${1}="$3"
+    export ${1}="${3}"
   else
-    eval ${1}="$pp"
+    export ${1}="${pp}"
   fi
 }
 
@@ -108,15 +108,15 @@ ask wwebrestart "Specify restart policy for this image (no|always|on-failure|unl
 if askif "Do you need database for the server?" "n"; then
   ask wdbsrv "Docker image for DB" "bitnami/mariadb:latest"
   ask wdbsrvname "Short name of the server (role)" "dbserver"
-  echo "This image will be linked to $wwebsrv as '$wdbsrvname'"
+  echo "This image will be linked to $wname as '${wname}-${wdbsrvname}'"
   wdbdir="${wdir}/db"
   ask wdbsrvdir "DB directory in the container" "/bitnami/mariadb"
   ask wdbdirmaps "Directory mappings" "-v ${wdbdir}:${wdbsrvdir}"
   ask wdbrestart "Specify restart policy for this image (no|always|on-failure|unless-stopped)" "unless-stopped"
 else
   wdbsrv=""
-  wdbdir="<none>"
-  wdbsrvname="<none>"
+  wdbdir=""
+  wdbsrvname=""
   wdbsrvdir=""
   wdbdirmaps=""
 fi
@@ -131,7 +131,7 @@ if askif "Do you need any additional docker image linked to ${wname}?" "n"; then
 else
   waddsrv=""
   wadddir=""
-  waddsrvname="<none>"
+  waddsrvname=""
   wadddirmaps=""
 fi
 
@@ -145,14 +145,20 @@ Database dir:  $wdbdir
 Web files:     $wwebdir
 DNS resolver:  $ddnsname  restart: unless-stopped
 Docker images, their mappings and restart policy:
-  $wwebsrv  restart: $wwebrestart
+  ${wname} ($wwebsrv) will restart $wwebrestart
     $wdirmaps
-  $wdbsrv restart: $wdbrestart
-    $wdbdirmaps
-  $waddsrv  restart: $waddrestart
-    $wadddirmaps
-
 EOF
+
+if [ "${wdbsrv}" != "" ]; then
+  echo "  ${wname}-${wdbsrvname} ($wdbsrv) will restart $wdbrestart"
+  echo "    $wdbdirmaps"
+fi
+
+if [ "${waddsrv}" != "" ]; then
+  echo "  ${waddsrvname} ($waddsrv) will restart $waddrestart"
+  echo "    $wadddirmaps"
+fi
+
 
 if askif "Start the show?" "n"; then
   echo "Starting..."
@@ -220,7 +226,7 @@ server {
 
 # All requests are handled by the ${wname} docker server
   location / {
-    root /$wwebsrvdir;
+    root $wwebsrvdir;
     proxy_set_header        Host \$host;
     proxy_set_header        X-Real-IP \$remote_addr;
     proxy_set_header        X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -238,9 +244,9 @@ server {
 # PHP scripts are served using the docker image
   location ~ \.php\$ {
     include fastcgi.conf;
-    include fastcgi_params.conf;
+    include fastcgi_params;
     fastcgi_pass ${wname}.docker:9000;
-    root /$wwebsrvdir;
+    root $wwebsrvdir;
     fastcgi_index index.php;
     index index.php;
     fastcgi_split_path_info ^(.+\.php)(/.+)\$;

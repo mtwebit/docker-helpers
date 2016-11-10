@@ -1,6 +1,10 @@
 #!/bin/bash
 # Simple shell script to generate hosts entries for docker containers
 # Created by Tamas Meszaros <mt+git@webit.hu>
+#
+# To quickly grab a fresh copy of this file
+# curl -Os https://raw.githubusercontent.com/mtwebit/docker-helpers/master/DockerInfo.sh && chmod 700 DockerInfo.sh
+#
 
 function show_help() {
 cat << EOF

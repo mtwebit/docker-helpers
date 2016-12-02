@@ -109,7 +109,7 @@ if askif "Do you need database for the server?" "n"; then
   ask wdbsrv "Docker image for DB" "bitnami/mariadb:latest"
   ask wdbsrvname "Short name of the server (role)" "dbserver"
   echo "This image will be linked to $wname as '${wname}-${wdbsrvname}'"
-  wdbdir="${wdir}/db"
+  ask wdbdir "Directory to persist database files" "${wdir}/db"
   ask wdbsrvdir "DB directory in the container" "/bitnami/mariadb"
   ask wdbdirmaps "Directory mappings" "-v ${wdbdir}:${wdbsrvdir}"
   ask wdbrestart "Specify restart policy for this image (no|always|on-failure|unless-stopped)" "unless-stopped"
@@ -124,9 +124,9 @@ fi
 if askif "Do you need any additional docker image linked to ${wname}?" "n"; then
   ask waddsrv "Docker image name" "bitnami/mongodb:latest"
   ask waddsrvname "Short name of the server (role)" "mongodb"
-  wadddir="${wdir}/${waddsrvname}"
+  ask wadddir "Directory to persist $addsrvname files" "${wdir}/${waddsrvname}"
   echo "This image will be linked to $wwebsrv as '$waddsrvname'"
-  ask wadddirmaps "Directory mappings for $waddsrv" "-v ${wdir}/{$waddsrvname}:/bitnami/mongodb"
+  ask wadddirmaps "Directory mappings for $waddsrv" "-v ${wadddir}:/bitnami/mongodb"
   ask waddrestart "Specify restart policy for this image (no|always|on-failure|unless-stopped)" "unless-stopped"
 else
   waddsrv=""

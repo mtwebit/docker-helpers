@@ -290,3 +290,11 @@ fi
 #  systemctl daemon-reload
 #  systemctl enable docker-startup@dresolver.service
 #  systemctl start docker-startup@dresolver.service
+
+# TODO processwire web setup
+# cd $wdir
+# git clone https://github.com/processwire/processwire/
+# \rmdir web && ln -s processwire web
+# cd processwire
+# chmod -R bin.bin .
+# git clone https://github.com/mtwebit/site-bootstrap-languages

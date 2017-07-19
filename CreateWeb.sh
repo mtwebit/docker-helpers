@@ -220,7 +220,25 @@ if askif "Do you want to setup a vhost-based nginx proxy to ${wname}?" "n"; then
     cat - <<EOF >> /etc/nginx/conf.d/${wname}.conf
 server {
   listen 80;
-  server_name $wurl;
+#  server_name $wurl;
+#  return 301 https://$server_name$request_uri;
+#}
+
+#server {
+#  listen 443;
+#  server_name $wurl;
+#  ssl_certificate     /etc/letsencrypt/live/${wurl}/fullchain.pem;
+#  ssl_certificate_key /etc/letsencrypt/live/${wurl}/privkey.pem;
+#  ssl on;
+#  # add Strict-Transport-Security to prevent man in the middle attacks
+#  add_header Strict-Transport-Security "max-age=31536000";
+#  ssl_session_cache  builtin:1000  shared:SSL:10m;
+#  ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
+#  ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+#  ssl_prefer_server_ciphers on;
+
+  index index.php index.html index.htm;
+
   root ${wwebdir};
   access_log            /var/log/nginx/${wname}.access.log;
 
@@ -233,14 +251,16 @@ server {
     proxy_set_header        X-Forwarded-Proto \$scheme;
     proxy_pass          http://${wname}.docker;
     proxy_read_timeout  90;
-    proxy_redirect      http://${wname}.docker http://$wurl;
+    proxy_redirect      http://${wname}.docker http://${wurl};
   }
 
 # Alternatively you can try to handle these requests on the main host
 #  location / {
-#    try_files $uri $uri/ /index.php?$uri&args;
+#    try_files \$uri \$uri/ /index.php?\$uri&args;
+#    try_files \$uri \$uri/ /index.php?it=\$uri&$args;
 #  }
 
+# Example
 # PHP scripts are served using the docker image
   location ~ \.php\$ {
     include fastcgi.conf;

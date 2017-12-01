@@ -10,7 +10,7 @@
 function show_help() {
 cat << EOF
 Usage: ${0##*/} [-?] <NAME>
-List information about docker hosts
+Create a docker-based Web backend
   NAME          name of the new Web server
 EOF
 }
@@ -47,13 +47,6 @@ if [ ! -x /usr/bin/docker ]; then
   exit 2
 else
   echo Docker found at /usr/bin/docker.
-fi
-
-if [ ! -d /etc/nginx/conf.d ]; then
-  echo "ERROR: Nginx server (Web proxy) is not installed."
-  exit 2
-else
-  echo "Nginx config dir found at /etc/nginx/conf.d/"
 fi
 
 # check for known docker dns resolver
@@ -211,6 +204,10 @@ if askif "Do you want to start them now?" "n"; then
   docker start $names || exit 1
 fi
 
+if [ ! -d /etc/nginx/conf.d ]; then
+  echo "Nginx server (Web proxy) is not installed. Skipping its configuration."
+  exit 0
+fi
 
 if askif "Do you want to setup a vhost-based nginx proxy to ${wname}?" "n"; then
   ask wurl "Public (external) name" "${wname}.mit.bme.hu"
@@ -283,13 +280,6 @@ fi
 # TODO letsencrypt certbot....
 # https://github.com/JrCs/docker-letsencrypt-nginx-proxy-companion
 # https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-centos-7
-
-# TODO systemd init fájl
-#  cd /etc/systemd/system/
-#  wget https://raw.githubusercontent.com/coeusite/docker-startup-systemd/master/docker-startup%40.service
-#  systemctl daemon-reload
-#  systemctl enable docker-startup@dresolver.service
-#  systemctl start docker-startup@dresolver.service
 
 # TODO processwire web setup
 # cd $wdir
